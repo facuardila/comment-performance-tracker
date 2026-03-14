@@ -1,8 +1,17 @@
 {
-  "functions": {
-    "app/api/**/*": {
-      "maxDuration": 60
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next",
+      "config": {
+        "buildCommand": "npx playwright install chromium && npm run build"
+      }
     }
-  },
-  "buildCommand": "npx playwright install-deps && npm run build"
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/"
+    }
+  ]
 }
