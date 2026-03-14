@@ -1,7 +1,7 @@
 "use server";
 
 import * as XLSX from 'xlsx';
-import { TrackedComment } from '@/types';
+import { Comment } from '@/types';
 import { insertTrackedComment } from '../db/comments';
 
 interface ImportResult {
@@ -49,25 +49,24 @@ export async function processXLSXImport(
         const row = jsonData[i];
         
         // Map row data to comment object
-        const comment: Omit<TrackedComment, 'id' | 'created_at' | 'updated_at'> = {
+        const comment: Omit<Comment, 'id' | 'created_at' | 'updated_at' | 'last_checked_at'> = {
           source_url: getStringValue(row[columnMappings.url]) || '',
-          normalized_url: getStringValue(row[columnMappings.url]) || '',
+          normalized_url: getStringValue(row[columnMappings.url]) || undefined,
           platform: 'instagram',
-          post_url: getStringValue(row[columnMappings.url]) || '',
-          comment_id: '',
-          post_id: '',
-          comment_text: getStringValue(row[columnMappings.commentText]) || null,
-          comment_author: getStringValue(row[columnMappings.commentAuthor]) || null,
-          target_account: getStringValue(row[columnMappings.targetAccount]) || getStringValue(row[columnMappings.account]) || null,
-          published_at: getDateValue(row[columnMappings.publishedAt]) ? getDateValue(row[columnMappings.publishedAt])!.toISOString() : null,
+          post_url: getStringValue(row[columnMappings.url]) || undefined,
+          comment_id: undefined,
+          post_id: undefined,
+          comment_text: getStringValue(row[columnMappings.commentText]) || undefined,
+          comment_author: getStringValue(row[columnMappings.commentAuthor]) || undefined,
+          target_account: getStringValue(row[columnMappings.targetAccount]) || getStringValue(row[columnMappings.account]) || undefined,
+          published_at: getDateValue(row[columnMappings.publishedAt]) ? getDateValue(row[columnMappings.publishedAt])!.toISOString() : undefined,
           first_seen_at: new Date().toISOString(),
-          last_checked_at: null,
-          current_likes: getNumericValue(row[columnMappings.likes]) || null,
-          current_replies: getNumericValue(row[columnMappings.replies]) || null,
+          current_likes: getNumericValue(row[columnMappings.likes]) || 0,
+          current_replies: getNumericValue(row[columnMappings.replies]) || 0,
           current_status: 'pending',
-          campaign_tag: getStringValue(row[columnMappings.campaignTag]) || defaultCampaignTag || null,
-          cm_name: getStringValue(row[columnMappings.cmName]) || defaultCMName || null,
-          notes: getStringValue(row[columnMappings.notes]) || null
+          campaign_tag: getStringValue(row[columnMappings.campaignTag]) || defaultCampaignTag || undefined,
+          cm_name: getStringValue(row[columnMappings.cmName]) || defaultCMName || undefined,
+          notes: getStringValue(row[columnMappings.notes]) || undefined
         };
 
         // Validate required fields

@@ -89,12 +89,11 @@ export default function QuickAddPage() {
     }
   }
 
-  const handleSaveAndAddAnother = (e: React.FormEvent) => {
+  const handleSaveAndAddAnother = (e: React.MouseEvent<HTMLButtonElement>) => {
     // Este manejador permite distinguir entre "Submit" y "Save and add another"
-    e.preventDefault()
     
     // Simular envío normal
-    const submitEvent = new SubmitEvent('submit', { bubbles: true, cancelable: true })
+    const submitEvent = new Event('submit', { bubbles: true, cancelable: true }) as unknown as React.FormEvent<HTMLFormElement>;
     Object.defineProperty(submitEvent, 'submitter', {
       value: { id: 'save-add-another' },
       writable: false

@@ -1,64 +1,28 @@
-"use server";
-
 import { createClient } from '@supabase/supabase-js';
-import { TrackedComment, CommentSnapshot } from '@/types';
+import { Comment, CommentSnapshot } from '../../types';
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-/**
- * Get all tracked comments with pagination and filtering
- */
-export async function getTrackedComments(
-  page: number = 1,
-  limit: number = 20,
-  filters?: {
-    status?: string;
-    platform?: string;
-    campaignTag?: string;
-    cmName?: string;
-    search?: string;
-  }
-): Promise<{ data: TrackedComment[]; count: number }> {
-  let query = supabase
+// Get all tracked comments
+export async function getTrackedComments(): Promise<Comment[]> {
+  const { data, error } = await supabase
     .from('tracked_comments')
-    .select('*', { count: 'exact' })
-    .range((page - 1) * limit, page * limit - 1)
+    .select('*')
     .order('created_at', { ascending: false });
 
-  if (filters) {
-    if (filters.status) {
-      query = query.eq('current_status', filters.status);
-    }
-    if (filters.platform) {
-      query = query.eq('platform', filters.platform);
-    }
-    if (filters.campaignTag) {
-      query = query.eq('campaign_tag', filters.campaignTag);
-    }
-    if (filters.cmName) {
-      query = query.eq('cm_name', filters.cmName);
-    }
-    if (filters.search) {
-      query = query.or(`comment_text.ilike.%${filters.search}%,source_url.ilike.%${filters.search}%`);
-    }
-  }
-
-  const { data, count, error } = await query;
-
   if (error) {
-    throw new Error(`Error fetching comments: ${error.message}`);
+    console.error('Error fetching tracked comments:', error);
+    throw error;
   }
 
-  return { data, count: count || 0 };
+  return data as Comment[];
 }
 
-/**
- * Get a single tracked comment by ID
- */
-export async function getTrackedCommentById(id: string): Promise<TrackedComment | null> {
+// Get a single tracked comment by ID
+export async function getTrackedCommentById(id: string): Promise<Comment | null> {
   const { data, error } = await supabase
     .from('tracked_comments')
     .select('*')
@@ -66,16 +30,14 @@ export async function getTrackedCommentById(id: string): Promise<TrackedComment 
     .single();
 
   if (error) {
-    if (error.code === 'PGRST116') return null; // Row not found
-    throw new Error(`Error fetching comment: ${error.message}`);
+    console.error('Error fetching tracked comment:', error);
+    return null;
   }
 
-  return data;
+  return data as Comment;
 }
 
-/**
- * Get snapshots for a specific comment
- */
+// Get snapshots for a specific comment
 export async function getCommentSnapshots(commentId: string): Promise<CommentSnapshot[]> {
   const { data, error } = await supabase
     .from('comment_snapshots')
@@ -84,182 +46,110 @@ export async function getCommentSnapshots(commentId: string): Promise<CommentSna
     .order('scraped_at', { ascending: true });
 
   if (error) {
-    throw new Error(`Error fetching snapshots: ${error.message}`);
+    console.error('Error fetching comment snapshots:', error);
+    throw error;
   }
 
-  return data;
+  return data as CommentSnapshot[];
 }
 
-/**
- * Insert a new tracked comment
- */
-export async function insertTrackedComment(comment: Omit<TrackedComment, 'id' | 'created_at' | 'updated_at'>): Promise<TrackedComment> {
+// Insert a new tracked comment
+export async function insertTrackedComment(comment: Omit<Comment, 'id' | 'created_at' | 'updated_at' | 'current_likes' | 'current_replies' | 'current_status' | 'last_checked_at'>): Promise<Comment | null> {
   const { data, error } = await supabase
     .from('tracked_comments')
-    .insert([{ ...comment }])
+    .insert([{ 
+      ...comment,
+      current_likes: 0,
+      current_replies: 0,
+      current_status: 'pending',
+      last_checked_at: new Date().toISOString()
+    }])
     .select()
     .single();
 
   if (error) {
-    throw new Error(`Error inserting comment: ${error.message}`);
+    console.error('Error inserting tracked comment:', error);
+    return null;
   }
 
-  return data;
+  return data as Comment;
 }
 
-/**
- * Update a tracked comment
- */
-export async function updateTrackedComment(id: string, updates: Partial<TrackedComment>): Promise<TrackedComment> {
-  const { data, error } = await supabase
+// Refresh selected comments
+export async function refreshSelectedComments(commentIds: string[]): Promise<void> {
+  // This function would trigger the scraping process for each comment
+  // In a real implementation, this might queue jobs or call an API endpoint
+  for (const id of commentIds) {
+    try {
+      // Call the refresh API for each comment
+      const response = await fetch(`/api/comments/${id}/refresh`, {
+        method: 'POST',
+      });
+      
+      if (!response.ok) {
+        console.error(`Failed to refresh comment ${id}:`, await response.text());
+      }
+    } catch (error) {
+      console.error(`Error refreshing comment ${id}:`, error);
+    }
+  }
+}
+
+// Get dashboard statistics
+export async function getDashboardStats(): Promise<any> {
+  // Get total comments
+  const { count: totalComments, error: totalError } = await supabase
     .from('tracked_comments')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .select()
-    .single();
+    .select('*', { count: 'exact', head: true });
 
-  if (error) {
-    throw new Error(`Error updating comment: ${error.message}`);
+  if (totalError) {
+    console.error('Error getting total comments:', totalError);
   }
 
-  return data;
-}
+  // Get status breakdown
+  const { data: statusBreakdown, error: statusError } = await supabase
+    .from('tracked_comments')
+    .select('current_status, count(*)')
+    .group('current_status');
 
-/**
- * Insert a new comment snapshot
- */
-export async function insertCommentSnapshot(snapshot: Omit<CommentSnapshot, 'id' | 'scraped_at'>): Promise<CommentSnapshot> {
-  const { data, error } = await supabase
+  if (statusError) {
+    console.error('Error getting status breakdown:', statusError);
+  }
+
+  // Get total engagement
+  const { data: engagementData, error: engagementError } = await supabase
+    .from('tracked_comments')
+    .select('current_likes, current_replies')
+    .is('current_status', 'active');
+
+  if (engagementError) {
+    console.error('Error getting engagement data:', engagementError);
+  }
+
+  let totalLikes = 0;
+  let totalReplies = 0;
+  if (engagementData) {
+    totalLikes = engagementData.reduce((sum, row) => sum + row.current_likes, 0);
+    totalReplies = engagementData.reduce((sum, row) => sum + row.current_replies, 0);
+  }
+
+  // Get recent snapshots for trends
+  const { data: recentSnapshots, error: snapshotsError } = await supabase
     .from('comment_snapshots')
-    .insert([{ ...snapshot }])
-    .select()
-    .single();
+    .select('*')
+    .gt('scraped_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()) // Last 7 days
+    .order('scraped_at', { ascending: false });
 
-  if (error) {
-    throw new Error(`Error inserting snapshot: ${error.message}`);
-  }
-
-  return data;
-}
-
-/**
- * Get dashboard statistics
- */
-export async function getDashboardStats() {
-  // Get dashboard stats using the RPC function
-  const { data, error } = await supabase.rpc('get_dashboard_stats');
-  
-  if (error) {
-    throw new Error(`Error getting dashboard stats: ${error.message}`);
-  }
-  
-  // Initialize status counts object
-  const statusCountsObj: any = {
-    active: 0,
-    deleted: 0,
-    not_found: 0,
-    private: 0,
-    error: 0
-  };
-
-  // Fill status counts
-  if (data && data.status_counts) {
-    Object.entries(data.status_counts).forEach(([status, count]) => {
-      statusCountsObj[status] = count;
-    });
+  if (snapshotsError) {
+    console.error('Error getting recent snapshots:', snapshotsError);
   }
 
   return {
-    total_comments: data?.total_comments || 0,
-    status_counts: statusCountsObj,
-    total_likes: data?.total_likes || 0,
-    total_replies: data?.total_replies || 0,
-    total_engagement: data?.total_engagement || 0,
-    top_comments_by_engagement: data?.top_comments_by_engagement || [],
-    top_accounts: data?.top_accounts || {},
-    engagement_over_time: data?.engagement_over_time || [],
-    top_cms: data?.top_cms || {},
-    top_campaigns: data?.top_campaigns || {}
+    totalComments: totalComments || 0,
+    statusBreakdown: statusBreakdown || [],
+    totalLikes,
+    totalReplies,
+    totalEngagement: totalLikes + totalReplies,
+    recentSnapshots: recentSnapshots || []
   };
-}
-
-/**
- * Refresh a single comment
- */
-export async function refreshComment(id: string) {
-  // Get the tracked comment first
-  const trackedComment = await getTrackedCommentById(id);
-  if (!trackedComment) {
-    throw new Error(`Comment with id ${id} not found`);
-  }
-
-  // Get browser instance
-  const { initBrowser } = await import('../playwright');
-  const browser = await initBrowser();
-
-  try {
-    // Scrape the comment metrics
-    const { scrapeCommentMetrics } = await import('../scrapers');
-    const scrapingResult = await scrapeCommentMetrics(trackedComment.source_url, browser);
-
-    // Update the tracked comment with new metrics
-    const updates: Partial<TrackedComment> = {
-      last_checked_at: new Date().toISOString(),
-      current_status: scrapingResult.data?.status || 'error',
-    };
-
-    if (scrapingResult.success && scrapingResult.data) {
-      updates.comment_text = scrapingResult.data.commentText || updates.comment_text;
-      updates.comment_author = scrapingResult.data.commentAuthor || updates.comment_author;
-      updates.published_at = scrapingResult.data.publishedAt || updates.published_at;
-      updates.current_likes = scrapingResult.data.likes || 0;
-      updates.current_replies = scrapingResult.data.replies || 0;
-      updates.target_account = scrapingResult.data.targetAccount || updates.target_account;
-    } else {
-      updates.current_status = 'error';
-    }
-
-    // Update the tracked comment
-    const updatedComment = await updateTrackedComment(id, updates);
-
-    // Create a snapshot record
-    await insertCommentSnapshot({
-      tracked_comment_id: id,
-      likes: scrapingResult.data?.likes || 0,
-      replies: scrapingResult.data?.replies || 0,
-      status: scrapingResult.data?.status || 'error',
-      raw_json: scrapingResult,
-      response_time_ms: null, // We don't have this metric here
-      error_message: scrapingResult.error || scrapingResult.data?.errorMessage || null
-    });
-
-    return {
-      success: scrapingResult.success,
-      comment: updatedComment,
-      snapshot: {
-        likes: scrapingResult.data?.likes || 0,
-        replies: scrapingResult.data?.replies || 0,
-        status: scrapingResult.data?.status || 'error',
-        error_message: scrapingResult.error || scrapingResult.data?.errorMessage
-      }
-    };
-  } finally {
-    // Don't close the browser here since it's shared
-  }
-}
-
-/**
- * Refresh multiple comments
- */
-export async function refreshComments(ids: string[]) {
-  const results = [];
-  for (const id of ids) {
-    try {
-      const result = await refreshComment(id);
-      results.push({ id, success: true, data: result });
-    } catch (error) {
-      results.push({ id, success: false, error: (error as Error).message });
-    }
-  }
-  return results;
 }

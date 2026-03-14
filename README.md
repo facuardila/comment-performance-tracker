@@ -1,193 +1,190 @@
 # Comment Performance Tracker
 
-Un sistema interno para agencias que permite a los community managers hacer un seguimiento del rendimiento de sus comentarios en Instagram, sin necesidad de credenciales de clientes ni APIs oficiales.
+An internal tool for agencies to track the performance of Instagram comments posted by community managers on third-party accounts, without using client credentials and without depending on official APIs.
 
-## Características
+## Features
 
-- **Quick Add**: Interfaz ultrarrápida para añadir comentarios de Instagram
-- **Scraper de Instagram**: Extrae métricas públicas sin credenciales
-- **Seguimiento histórico**: Almacena snapshots de métricas a lo largo del tiempo
-- **Vista tipo base de datos**: Tabla filtrable y ordenable
-- **Dashboard**: KPIs y gráficos de rendimiento
-- **Importador XLSX**: Para datos históricos
-- **Bookmarklet**: Herramienta para captura rápida desde Instagram
+- **Quick Add**: Ultra-fast interface for daily use by community managers
+- **Instagram Scraping**: Extracts public metrics without API credentials
+- **Historical Tracking**: Saves snapshots of comment performance over time
+- **Dashboard**: Visual analytics and KPIs
+- **XLSX Import**: Seed historical data from spreadsheets
+- **Bookmarklet**: Quick capture from Instagram web interface
+- **Database View**: Usable table view with filters and search
 
-## Stack Tecnológico
+## Tech Stack
 
-- Next.js 14 con App Router
-- TypeScript
-- Tailwind CSS + shadcn/ui
-- Supabase (PostgreSQL)
-- Playwright para scraping
-- Recharts para gráficos
-- xlsx para importador
+- Next.js App Router + TypeScript
+- Tailwind + shadcn/ui
+- Supabase (Postgres)
+- Playwright for scraping
+- Recharts for graphs
+- xlsx for importer
+- Prisma for database operations
 
-## Instalación
+## Installation
 
-1. Clona el repositorio:
-
+1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone <your-repo-url>
 cd comment-tracker
 ```
 
-2. Instala las dependencias:
-
+2. Install dependencies:
 ```bash
 npm install
-# o
-pnpm install
+# or
+yarn install
 ```
 
-3. Configura las variables de entorno:
+3. Set up environment variables:
+```bash
+cp .env.example .env.local
+```
 
-Crea un archivo `.env.local` basado en `.env.example`:
-
+4. Update `.env.local` with your Supabase credentials:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
 
-4. Instala los navegadores de Playwright:
-
+5. Initialize the database:
 ```bash
-npx playwright install
+npm run db:init
+# or run the SQL migrations manually
 ```
 
-5. Ejecuta la aplicación:
+## Database Setup
 
-```bash
-npm run dev
-```
+The application uses the following tables:
 
-La aplicación estará disponible en `http://localhost:3000`.
+### tracked_comments
+- id: UUID primary key
+- source_url: Original URL of the comment/post
+- normalized_url: Normalized URL
+- platform: Platform name (currently 'instagram')
+- post_url: URL of the post
+- comment_id: Unique identifier for the comment
+- post_id: Unique identifier for the post
+- comment_text: Text content of the comment
+- comment_author: Author of the comment
+- target_account: Account being commented on
+- published_at: When the comment was published
+- first_seen_at: When we first tracked this comment
+- last_checked_at: Last time metrics were scraped
+- current_likes: Current number of likes
+- current_replies: Current number of replies
+- current_status: Status (pending/active/deleted/not_found/private/error)
+- campaign_tag: Campaign identifier
+- cm_name: Community manager name
+- notes: Additional notes
+- created_at: Record creation timestamp
+- updated_at: Record update timestamp
 
-## Configuración de Supabase
+### comment_snapshots
+- id: UUID primary key
+- tracked_comment_id: Reference to tracked_comments
+- scraped_at: Timestamp when metrics were captured
+- likes: Number of likes at that time
+- replies: Number of replies at that time
+- status: Status at that time
+- raw_json: Raw scraped data (optional)
+- response_time_ms: How long scraping took
+- error_message: Error details if scraping failed
 
-1. Crea una cuenta en [Supabase](https://supabase.io)
-2. Crea un nuevo proyecto
-3. Copia la URL del proyecto y la API Key (Service Role) en tu archivo `.env.local`
-4. Ejecuta el script de migración para crear las tablas:
+### import_batches
+- id: UUID primary key
+- file_name: Name of the imported file
+- imported_at: When the import happened
+- total_rows: Total rows in the file
+- success_rows: Successfully processed rows
+- failed_rows: Failed rows
 
-```sql
--- Tabla para comentarios seguidos
-CREATE TABLE tracked_comments (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  source_url TEXT NOT NULL UNIQUE,
-  normalized_url TEXT,
-  platform TEXT DEFAULT 'instagram',
-  post_url TEXT,
-  comment_id TEXT,
-  post_id TEXT,
-  comment_text TEXT,
-  comment_author TEXT,
-  target_account TEXT,
-  published_at TIMESTAMP WITH TIME ZONE,
-  first_seen_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  last_checked_at TIMESTAMP WITH TIME ZONE,
-  current_likes INTEGER DEFAULT 0,
-  current_replies INTEGER DEFAULT 0,
-  current_status TEXT DEFAULT 'pending' CHECK (current_status IN ('pending', 'active', 'deleted', 'not_found', 'private', 'error')),
-  campaign_tag TEXT,
-  cm_name TEXT,
-  notes TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+## Usage
 
--- Tabla para snapshots históricos
-CREATE TABLE comment_snapshots (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  tracked_comment_id UUID REFERENCES tracked_comments(id) ON DELETE CASCADE,
-  scraped_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  likes INTEGER DEFAULT 0,
-  replies INTEGER DEFAULT 0,
-  status TEXT CHECK (status IN ('active', 'deleted', 'not_found', 'private', 'error')),
-  raw_json JSONB,
-  response_time_ms INTEGER,
-  error_message TEXT
-);
+### Quick Add (Primary UX)
 
--- Tabla para lotes de importación
-CREATE TABLE import_batches (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  file_name TEXT NOT NULL,
-  imported_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  total_rows INTEGER,
-  success_rows INTEGER,
-  failed_rows INTEGER
-);
+1. Navigate to `/comments/new`
+2. Paste the Instagram comment or post URL
+3. Fill in CM name and campaign tag (these will be remembered in localStorage)
+4. Click "Save and Add Another" to quickly add multiple comments
 
--- Índices para mejorar el rendimiento
-CREATE INDEX idx_tracked_comments_source_url ON tracked_comments(source_url);
-CREATE INDEX idx_tracked_comments_platform_status ON tracked_comments(platform, current_status);
-CREATE INDEX idx_tracked_comments_last_checked ON tracked_comments(last_checked_at);
-CREATE INDEX idx_comment_snapshots_comment_id ON comment_snapshots(tracked_comment_id);
-CREATE INDEX idx_comment_snapshots_scraped_at ON comment_snapshots(scraped_at DESC);
-```
+This is the heart of the product - designed for speed and usability on both desktop and mobile.
 
-## Cómo usar
+### Import Historical Data
 
-### Quick Add (Principal)
-
-1. Ve a `/comments/new`
-2. Pega el enlace del comentario o post de Instagram
-3. Selecciona o introduce tu nombre de CM
-4. Añade una etiqueta de campaña si es relevante
-5. Haz clic en "Save and Add Another" para continuar rápidamente
-
-### Importar datos históricos
-
-1. Ve a `/imports/new`
-2. Sube un archivo .xlsx con columnas como `url`, `cm_name`, `campaign_tag`, etc.
-3. El sistema procesará y añadirá los comentarios a la base de datos
-
-### Ver comentarios seguidos
-
-1. Ve a `/comments`
-2. Usa filtros, búsquedas y ordenación para encontrar comentarios específicos
-3. Actualiza métricas individuales o por lotes
+1. Go to `/imports/new`
+2. Upload your XLSX file with historical comment data
+3. The system will automatically detect columns and map them appropriately
+4. You can override default CM name and campaign tag if needed
 
 ### Dashboard
 
-1. Ve a `/dashboard`
-2. Consulta KPIs generales y tendencias
-3. Identifica comentarios destacados y patrones de rendimiento
+View at `/dashboard` to see:
+- Total comments tracked
+- Status breakdown (active vs deleted vs not_found)
+- Total engagement metrics
+- Top performing comments
+- Performance by account, CM, and campaign
+
+### Individual Comment Details
+
+Each comment has a detail page at `/comments/[id]` showing:
+- Full metadata
+- Engagement timeline
+- Historical snapshots
+- Refresh button to update metrics
 
 ### Bookmarklet
 
-1. Ve a `/tools`
-2. Genera el bookmarklet y arrástralo a tu barra de favoritos
-3. Úsalo en cualquier página de Instagram para añadir comentarios rápidamente
+1. Visit `/tools`
+2. Copy the bookmarklet code
+3. Create a new bookmark in your browser
+4. Name it "Track Instagram Comment"
+5. Paste the code in the URL field
+6. When browsing Instagram, click the bookmark to quickly capture the current URL
 
-## Security Considerations
+## Limitations Known
 
-### Known Vulnerabilities
-- The `xlsx` library has known vulnerabilities (Prototype Pollution and ReDoS)
-- These vulnerabilities are related to the import functionality for XLSX files
-- To mitigate risks:
-  - Only import trusted XLSX files
-  - Validate file contents before processing
-  - Consider using CSV format as an alternative for data import
-  - Monitor for updates to the xlsx library that address these issues
+### Scraping Limitations
 
-## Limitaciones del scraping
+- Instagram has anti-bot measures that may temporarily block requests
+- Metrics are only as accurate as what's publicly visible
+- Comment-specific links work better than post links (when available)
+- Scraping may fail if Instagram changes their HTML structure
+- Rate limiting should be respected to avoid IP blocking
 
-- Solo se pueden obtener métricas públicas
-- El scraping puede fallar si Instagram cambia su estructura HTML
-- Las tasas de solicitud pueden estar limitadas por Instagram
-- Algunas métricas pueden no estar disponibles dependiendo de la configuración de privacidad
+### Maintenance Requirements
 
-## Mantenimiento
+- DOM selectors may need updating when Instagram changes their UI
+- Monitor scraping success rates and adjust selectors as needed
+- Regular cleanup of old snapshots may be necessary
 
-- Los selectores DOM deben actualizarse periódicamente según los cambios en Instagram
-- Monitorea los errores de scraping en la base de datos
-- Realiza copias de seguridad regulares de la base de datos
+## Development
 
-## Contribuciones
+To run the development server:
 
-Las contribuciones son bienvenidas. Por favor, abre un issue para discutir cambios importantes antes de enviar un PR.
+```bash
+npm run dev
+# or
+yarn dev
+```
 
-## Licencia
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-MIT
+## Architecture Notes
+
+- `/lib/scrapers/`: Modular scraping architecture ready for additional platforms
+- `/lib/db/`: Database operations layer
+- `/app/api/`: API routes for core functionality
+- `/types/`: Shared TypeScript interfaces
+- `/components/`: Reusable UI components
+
+## Future Enhancements
+
+- TikTok support (architecture prepared)
+- Advanced analytics and insights
+- Automated refresh scheduling
+- Export functionality
+- Team collaboration features

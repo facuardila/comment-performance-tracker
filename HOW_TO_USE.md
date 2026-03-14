@@ -1,195 +1,126 @@
-# Comment Performance Tracker - Guía de Uso
+# Comment Performance Tracker - User Guide
 
-## Introducción
+## Getting Started
 
-El Comment Performance Tracker es una herramienta interna para agencias que permite a los community managers hacer un seguimiento del rendimiento de sus comentarios en Instagram, sin necesidad de credenciales de clientes ni APIs oficiales.
+### Prerequisites
+- Node.js 18+ installed
+- Access to a Supabase project
+- Browser with JavaScript enabled
 
-## Cómo Empezar
+### Initial Setup
+1. Clone the repository and navigate to the project directory
+2. Install dependencies: `npm install`
+3. Copy `.env.example` to `.env.local` and configure your Supabase credentials
+4. Run database migrations: `npx prisma migrate dev`
+5. Start the development server: `npm run dev`
 
-### 1. Instalación y Configuración Inicial
+## Primary Workflow: Quick Add
 
-1. Asegúrate de tener Node.js instalado en tu sistema
-2. Clona el repositorio y navega al directorio del proyecto
-3. Ejecuta `npm install` para instalar las dependencias
-4. Configura las variables de entorno en un archivo `.env.local`:
-   - `NEXT_PUBLIC_SUPABASE_URL`: Tu URL de proyecto de Supabase
-   - `SUPABASE_SERVICE_ROLE_KEY`: Tu clave de servicio de Supabase
-5. Instala los navegadores de Playwright: `npx playwright install`
-6. Inicia la aplicación: `npm run dev`
+The Quick Add interface is the heart of the application, designed for daily use by community managers.
 
-### 2. Configuración de la Base de Datos
+### Step 1: Navigate to Quick Add
+- Go to `/comments/new` in your browser
+- The interface is optimized for speed and mobile use
 
-La aplicación requiere una base de datos PostgreSQL. Recomendamos usar Supabase:
-1. Crea una cuenta gratuita en supabase.com
-2. Crea un nuevo proyecto
-3. Copia la URL del proyecto y la API Key (Service Role) en tu archivo `.env.local`
-4. Las tablas se crearán automáticamente cuando inicies la aplicación
+### Step 2: Add a Comment
+1. Copy the URL of the Instagram comment or post you want to track
+2. Paste it into the "URL" field
+3. Enter your name in the "CM Name" field (this will be remembered in localStorage)
+4. Select or enter a "Campaign Tag" (also remembered in localStorage)
+5. Optionally add the target account and any notes
+6. Click "Add Comment" or "Add and Create Another"
 
-## Funcionalidades Principales
+### Step 3: Verification
+- The system will immediately scrape the URL and store the initial metrics
+- You'll see a success notification
+- The comment will appear in your tracking list
 
-### 1. Quick Add (Interfaz Principal)
+## Importing Historical Data
 
-La interfaz Quick Add es el corazón del producto, diseñada para un uso diario ultra-rápido por parte de los community managers.
+If you have an XLSX file with historical comment data:
 
-**Acceso**: `/comments/new`
+1. Go to `/imports/new`
+2. Click "Choose File" and select your XLSX file
+3. The system will automatically detect common column names
+4. Review the detected mappings (URL, CM Name, Campaign Tag, etc.)
+5. Optionally set default values for CM Name and Campaign Tag
+6. Click "Import File"
+7. Review the import results showing success and error counts
 
-**Pasos para usar**:
-1. Navega a `/comments/new`
-2. Pega el enlace del comentario o post de Instagram
-3. Introduce tu nombre de CM
-4. Añade una etiqueta de campaña si es relevante
-5. Opcionalmente, añade la cuenta objetivo y notas
-6. Haz clic en "Save" o "Save and Add Another" para continuar rápidamente
+## Managing Comments
 
-**Características**:
-- Muy rápida: pegar URL y enviar en 2 segundos
-- Persistencia de CM name y campaign tag en localStorage
-- Botón "Save and add another" para añadir múltiples comentarios rápidamente
-- Mostrar últimos comentarios añadidos
+### Viewing All Comments
+- Navigate to `/comments` to see all tracked comments
+- Use the search bar to find specific comments
+- Apply filters for campaign, CM, status, etc.
+- Sort by clicking column headers
+- Select multiple comments for bulk operations
 
-### 2. Importador XLSX (Datos Históricos)
+### Comment Details
+- Click on any comment to view detailed metrics
+- See engagement trends over time
+- View all historical snapshots
+- Refresh metrics manually if needed
 
-Para cargar datos históricos desde un archivo Excel.
+### Bulk Operations
+- Select multiple comments using checkboxes
+- Use the dropdown to perform bulk actions
+- Options include refreshing selected comments
 
-**Acceso**: `/imports/new`
+## Dashboard Analytics
 
-**Pasos para usar**:
-1. Navega a `/imports/new`
-2. Arrastra o selecciona un archivo .xlsx
-3. El sistema detectará automáticamente las columnas
-4. Mapea las columnas si es necesario (url, cm_name, campaign_tag, etc.)
-5. Procesa la importación
+The dashboard at `/dashboard` provides an overview of your tracked comments:
 
-**Formato esperado**:
-- Columnas recomendadas: `url`, `cm_name`, `campaign_tag`, `target_account`, `notes`
-- La columna `url` es obligatoria
+- Total comments tracked
+- Status breakdown (active, deleted, not found)
+- Total engagement metrics
+- Top performing comments
+- Performance by account, CM, and campaign
+- Engagement trend charts
 
-### 3. Vista de Comentarios (Base de Datos)
+## Using the Bookmarklet
 
-Una vista tipo base de datos para explorar todos los comentarios seguidos.
+For the fastest capture of Instagram comments:
 
-**Acceso**: `/comments`
+1. Go to `/tools`
+2. Copy the bookmarklet code
+3. Create a new bookmark in your browser
+4. Name it "Track Instagram Comment"
+5. Paste the code in the URL field
+6. When browsing Instagram, click the bookmark to quickly capture the current URL
+7. This will open the Quick Add page with the URL pre-filled
 
-**Funcionalidades**:
-- Búsqueda por texto
-- Filtros por plataforma, estado, campaña, CM
-- Ordenación por diferentes columnas
-- Paginación
-- Selección múltiple
-- Exportación a CSV
-- Actualización de métricas seleccionadas
-- Ver detalles de comentario
+## Refreshing Metrics
 
-### 4. Detalle de Comentario
+### Manual Refresh
+- On the comments list page, select one or more comments
+- Use the "Refresh Selected" button
+- Or visit a specific comment's detail page and click "Refresh Now"
 
-Vista detallada de un comentario específico con toda la información y evolución temporal.
+### Understanding Statuses
+- **Active**: Comment is visible and metrics are current
+- **Deleted**: Comment is no longer visible on Instagram
+- **Not Found**: URL could not be resolved
+- **Private**: Content is in a private account
+- **Error**: Technical issue during scraping
+- **Pending**: New comment awaiting first scrape
 
-**Acceso**: `/comments/[id]`
+## Troubleshooting
 
-**Contenido**:
-- Metadatos completos del comentario
-- Enlace original
-- Estado actual
-- Gráficos de evolución de likes
-- Gráficos de evolución de replies
-- Gráficos de evolución de engagement total
-- Tabla de snapshots históricos
-- Notas editables
+### Common Issues
+- **Scraping fails**: Instagram may have changed their HTML structure or blocked your IP temporarily
+- **Rate limiting**: Avoid rapid consecutive requests to avoid being blocked
+- **Invalid URLs**: Ensure you're using valid Instagram comment or post URLs
 
-### 5. Dashboard
+### Error Messages
+- Check the error message in the comment record for specific details
+- Most errors are temporary and will resolve on subsequent attempts
+- Contact your administrator if issues persist
 
-Panel de control con KPIs y métricas generales.
+## Best Practices
 
-**Acceso**: `/dashboard`
-
-**KPIs mostrados**:
-- Total de comentarios seguidos
-- Distribución de estados (activos vs eliminados vs no encontrados)
-- Total de likes acumulados
-- Total de replies acumulados
-- Total de engagement acumulado
-
-**Gráficos disponibles**:
-- Top 10 comentarios por engagement
-- Top 10 cuentas objetivo
-- Evolución de likes por día
-- Evolución de replies por día
-- Evolución de engagement total por día
-- Ranking por CM
-- Ranking por campaña
-- Comentarios con mayor velocidad de crecimiento
-
-### 6. Bookmarklet (Captura Rápida)
-
-Herramienta para capturar rápidamente comentarios desde Instagram web.
-
-**Acceso**: `/tools`
-
-**Configuración**:
-1. Navega a `/tools`
-2. Arrastra el enlace del bookmarklet a tu barra de favoritos
-3. Cuando estés en una página de Instagram, haz clic en el bookmarklet
-4. Se abrirá la interfaz Quick Add con la URL pre-rellenada
-
-## Buenas Prácticas
-
-### Para Community Managers
-
-1. **Uso diario**: Utiliza la interfaz Quick Add para añadir comentarios inmediatamente después de publicarlos
-2. **Etiquetas de campaña**: Usa etiquetas consistentes para agrupar comentarios relacionados
-3. **Nombres de CM**: Usa nombres consistentes para facilitar el seguimiento
-4. **Actualización regular**: Refresca las métricas regularmente para mantener los datos actualizados
-
-### Para Administradores
-
-1. **Monitoreo**: Revisa regularmente el dashboard para identificar tendencias
-2. **Limpieza**: Elimina comentarios irrelevantes o duplicados periódicamente
-3. **Backup**: Realiza copias de seguridad regulares de la base de datos
-4. **Mantenimiento**: Mantén actualizados los selectores de scraping según los cambios en Instagram
-
-## Limitaciones y Consideraciones
-
-### Limitaciones Técnicas
-
-1. **Scraping**: La aplicación depende del scraping de Instagram, lo que puede verse afectado por cambios en la interfaz
-2. **Métricas públicas**: Solo se pueden obtener métricas públicamente visibles
-3. **Tasas de solicitud**: Instagram puede limitar las solicitudes automatizadas
-4. **Privacidad**: Algunos comentarios pueden no ser accesibles debido a configuraciones de privacidad
-
-### Consideraciones de Seguridad
-
-1. **Vulnerabilidad de xlsx**: La biblioteca xlsx tiene vulnerabilidades conocidas (Prototype Pollution y ReDoS)
-2. **Archivos confiables**: Solo importes archivos XLSX de fuentes confiables
-3. **Validación**: Valida siempre el contenido de los archivos antes de procesarlos
-
-## Solución de Problemas
-
-### Problemas Comunes
-
-1. **Error de scraping**: Si un comentario no se puede scrapear, revisa el estado en la base de datos
-2. **Conexión a Supabase**: Asegúrate de que las variables de entorno estén correctamente configuradas
-3. **Playwright**: Si el scraping falla, asegúrate de que los navegadores de Playwright estén instalados
-
-### Depuración
-
-1. Revisa los logs de la aplicación para mensajes de error
-2. Verifica el estado de los comentarios en la base de datos
-3. Comprueba que las URLs de Instagram sean válidas y accesibles públicamente
-
-## Mantenimiento
-
-### Actualizaciones Regulares
-
-1. **Selectores de scraping**: Actualiza los selectores DOM cuando Instagram cambie su interfaz
-2. **Dependencias**: Mantén actualizadas las dependencias del proyecto
-3. **Base de datos**: Realiza backups regulares y optimiza índices según sea necesario
-
-### Escalabilidad
-
-1. **Rendimiento**: Para grandes volúmenes de datos, considera optimizar consultas y añadir índices
-2. **Scraping**: Implementa colas y rate limiting para grandes volúmenes de scraping
-3. **Almacenamiento**: Considera estrategias de archivado para datos históricos antiguos
-
-## Conclusión
-
-El Comment Performance Tracker proporciona una solución completa para que las agencias sigan el rendimiento de los comentarios de Instagram de sus community managers. Con su interfaz optimizada para un uso diario y sus potentes capacidades de análisis, es una herramienta invaluable para medir y mejorar el impacto de las estrategias de engagement en redes sociales.
+- Use consistent campaign tags for better analytics
+- Add descriptive notes for context
+- Regularly refresh metrics to maintain accuracy
+- Use the bookmarklet for fastest capture
+- Monitor the status of your tracked comments

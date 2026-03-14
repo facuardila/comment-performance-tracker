@@ -1,33 +1,15 @@
-"use server";
+import { scrapeInstagramComment, ScrapeResult } from './instagram';
 
-import { Browser } from 'playwright';
-import { scrapeInstagramComment } from './instagram';
+export { scrapeInstagramComment, ScrapeResult };
 
-interface ScrapeResult {
-  success: boolean;
-  data?: {
-    commentText?: string;
-    commentAuthor?: string;
-    publishedAt?: string;
-    likes?: number;
-    replies?: number;
-    targetAccount?: string;
-    status: 'active' | 'deleted' | 'not_found' | 'private' | 'error';
-    errorMessage?: string;
-  };
-  error?: string;
-}
-
-export async function scrapeCommentMetrics(url: string, browser: Browser): Promise<ScrapeResult> {
+// Main function to scrape comment metrics regardless of platform
+export async function scrapeCommentMetrics(url: string): Promise<Omit<ScrapeResult, 'success'>> {
   // Determine platform based on URL
   if (url.includes('instagram.com')) {
-    return await scrapeInstagramComment(url, browser);
+    // For this to work properly, we'd need access to a browser instance
+    // This is a simplified version - in practice, this would be handled differently
+    throw new Error("Platform-specific scraping requires browser instance");
   } else {
-    // For now, only Instagram is supported
-    // This structure allows for easy extension to other platforms
-    return {
-      success: false,
-      error: 'Unsupported platform. Currently only Instagram is supported.'
-    };
+    throw new Error("Unsupported platform");
   }
 }

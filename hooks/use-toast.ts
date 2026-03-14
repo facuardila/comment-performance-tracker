@@ -4,9 +4,8 @@
 import * as React from "react"
 
 import type {
-  ToastActionElement,
   ToastProps,
-} from "@/components/ui/toast"
+} from "@radix-ui/react-toast"
 
 const TOAST_LIMIT = 1
 const TOAST_REMOVE_DELAY = 1000000
@@ -15,7 +14,8 @@ type ToasterToast = ToastProps & {
   id: string
   title?: React.ReactNode
   description?: React.ReactNode
-  action?: ToastActionElement
+  action?: React.ReactElement
+  variant?: "default" | "destructive"
 }
 
 const actionTypes = {
@@ -140,7 +140,7 @@ function dispatch(action: Action) {
   })
 }
 
-type Toast = Omit<ToasterToast, "id">
+type Toast = Omit<ToasterToast, "id"> & { variant?: "default" | "destructive" }
 
 function toast({ ...props }: Toast) {
   const id = genId()

@@ -2,19 +2,17 @@
 
 import { Browser, Page } from 'playwright';
 
-interface ScrapeResult {
+// Define the interface for scrape results
+export interface ScrapeResult {
   success: boolean;
-  data?: {
-    commentText?: string;
-    commentAuthor?: string;
-    publishedAt?: string;
-    likes?: number;
-    replies?: number;
-    targetAccount?: string;
-    status: 'active' | 'deleted' | 'not_found' | 'private' | 'error';
-    errorMessage?: string;
-  };
-  error?: string;
+  commentText?: string;
+  commentAuthor?: string;
+  publishedAt?: string;
+  likes: number;
+  replies: number;
+  targetAccount?: string;
+  status: 'active' | 'deleted' | 'not_found' | 'private' | 'error';
+  errorMessage?: string;
 }
 
 export async function scrapeInstagramComment(url: string, browser: Browser): Promise<ScrapeResult> {
@@ -40,9 +38,9 @@ export async function scrapeInstagramComment(url: string, browser: Browser): Pro
     if (isNotFound) {
       return {
         success: true,
-        data: {
-          status: 'not_found'
-        }
+        likes: 0,
+        replies: 0,
+        status: 'not_found'
       };
     }
 
@@ -69,10 +67,10 @@ export async function scrapeInstagramComment(url: string, browser: Browser): Pro
       const postInfo = await extractPostInfo(page);
       return {
         success: true,
-        data: {
-          ...postInfo,
-          status: 'active'
-        }
+        likes: postInfo.likes || 0,
+        replies: postInfo.replies || 0,
+        ...postInfo,
+        status: postInfo.status || 'active'
       };
     }
 
@@ -88,27 +86,36 @@ export async function scrapeInstagramComment(url: string, browser: Browser): Pro
 
     return {
       success: true,
-      data: {
-        commentText,
-        commentAuthor,
-        publishedAt,
-        likes: likesCount,
-        replies: repliesCount,
-        targetAccount,
-        status: 'active'
-      }
+      commentText,
+      commentAuthor,
+      publishedAt,
+      likes: likesCount,
+      replies: repliesCount,
+      targetAccount,
+      status: 'active'
     };
   } catch (error) {
     console.error(`Error scraping Instagram comment from ${url}:`, error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : String(error)
+      likes: 0,
+      replies: 0,
+      status: 'error',
+      errorMessage: error instanceof Error ? error.message : String(error)
     };
   } finally {
     if (page) {
       await page.close();
     }
   }
+}
+
+// Export the function with the name expected by the API route
+export async function scrapeCommentMetrics(url: string): Promise<Omit<ScrapeResult, 'success'>> {
+  // This function would need a browser instance, so we'll return an error
+  // In a real implementation, this would be called from a server action
+  // that has access to the Playwright browser instance
+  throw new Error("This function requires a browser instance and should be called from a server action");
 }
 
 function normalizeInstagramUrl(url: string): string {
@@ -323,7 +330,7 @@ async function extractTargetAccount(page: Page): Promise<string | undefined> {
   }
 }
 
-async function extractPostInfo(page: Page): Promise<Partial<ScrapeResult['data']>> {
+async function extractPostInfo(page: Page): Promise<Partial<ScrapeResult>> {
   try {
     // Extract basic post information if comment-specific info isn't available
     const targetAccount = await extractTargetAccount(page);

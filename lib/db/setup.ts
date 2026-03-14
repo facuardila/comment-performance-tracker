@@ -1,45 +1,27 @@
-"use server";
+import { createClient } from '@supabase/supabase-js'
 
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-/**
- * Initialize the database with required tables and functions
- */
 export async function initializeDatabase() {
   try {
-    // In a real implementation, you would run these SQL commands against your database
-    // For now, we'll just return success
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     
-    console.log('Database initialization completed');
-    return { success: true, message: 'Database initialized successfully' };
-  } catch (error) {
-    console.error('Error initializing database:', error);
-    return { success: false, message: `Error initializing database: ${(error as Error).message` };
-  }
-}
+    if (!supabaseUrl || !supabaseKey) {
+      return { success: false, message: 'Supabase URL and key are required' }
+    }
 
-/**
- * Check if the database is properly initialized
- */
-export async function checkDatabaseConnection() {
-  try {
-    const { count, error } = await supabase
-      .from('tracked_comments')
-      .select('*', { count: 'exact', head: true });
-      
+    const supabase = createClient(supabaseUrl, supabaseKey)
+    
+    // Test connection
+    const { error } = await supabase.from('tracked_comments').select('count').limit(1)
+    
     if (error) {
-      console.error('Database connection error:', error);
-      return { success: false, message: `Database connection error: ${error.message}` };
+      console.error('Database connection test failed:', error)
+      return { success: false, message: `Database connection failed: ${error.message}` }
     }
     
-    return { success: true, message: 'Database connection successful', count };
+    return { success: true, message: 'Database initialized successfully', supabase }
   } catch (error) {
-    console.error('Database connection error:', error);
-    return { success: false, message: `Database connection error: ${(error as Error).message` };
+    console.error('Error initializing database:', error);
+    return { success: false, message: `Error initializing database: ${error instanceof Error ? error.message : String(error)}` };
   }
 }
