@@ -1,0 +1,8 @@
+{
+  "functions": {
+    "app/api/**/*": {
+      "maxDuration": 60
+    }
+  },
+  "buildCommand": "npx playwright install-deps && npm run build"
+}
